@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Patently Dumb</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #f8f8f8; }
+    .screen { display: none; padding: 2rem; }
+    .active { display: block; }
+    .center { text-align: center; }
+    .button { padding: 0.75rem 1.5rem; margin: 1rem; background: #333; color: white; border: none; border-radius: 8px; cursor: pointer; }
+    .input { padding: 0.5rem; width: 80%; max-width: 400px; border: 1px solid #ccc; border-radius: 5px; margin-top: 1rem; }
+    #canvas { border: 2px solid #ccc; background: white; cursor: crosshair; }
+    .judgment-box { margin-top: 2rem; padding: 1rem; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    #inviteLink { margin-top: 1rem; font-size: 0.9rem; }
+    #playerList { margin-top: 1rem; font-size: 1rem; }
+  </style>
+</head>
+<body>
+
+<div id="lobbyScreen" class="screen active center">
+  <h1>🎉 Welcome to Patently Dumb!</h1>
+  <input id="playerName" class="input" placeholder="Enter your name" />
+  <button class="button" onclick="joinGame()">Join Game</button>
+  <div id="inviteLink"></div>
+  <button class="button" onclick="copyInviteLink()">Copy Link</button>
+  <div id="copyStatus" style="font-size: 0.9rem; color: green;"></div>
+  <div id="playerList"><strong>Players in Room:</strong><ul id="playerNames"></ul></div>
+</div>
+
+<div id="problemSubmitScreen" class="screen center">
+  <h2>🧠 Come up with a weird problem</h2>
+  <input id="problemInput" class="input" placeholder="e.g. I keep losing my left sock" />
+  <button class="button" onclick="submitProblem()">Submit</button>
+</div>
+
+<div id="drawingScreen" class="screen center">
+  <h2 id="givenProblem">Problem:</h2>
+  <canvas id="canvas" width="400" height="400"></canvas><br>
+  <input id="inventionName" class="input" placeholder="Name your invention" /><br>
+  <input id="pitchLine" class="input" placeholder="Write a short pitch" /><br>
+  <button class="button" onclick="finishDrawing()">Finish</button>
+</div>
+
+<div id="judgingScreen" class="screen center">
+  <h2>Your invention is being judged...</h2>
+  <div class="judgment-box" id="judge1">🤖 Professor Realgood: Analyzing...</div>
+  <div class="judgment-box" id="judge2">🤪 WackyBot 9000: Loading giggles...</div>
+  <div class="judgment-box" id="judge3">😒 Judge Meh: Sigh...</div>
+  <h3 id="totalEarnings">Total Earnings: $0</h3>
+  <div id="finalPitch" style="margin-top: 1rem;"></div>
+  <button class="button" onclick="startNextRound()">Next Round</button>
+</div>
+
+<script>
+  const screens = ['lobbyScreen', 'problemSubmitScreen', 'drawingScreen', 'judgingScreen'];
+  let playerName = '';
+  let currentProblem = '';
+  let roomId = '';
+  let players = [];
+
+  function showScreen(id) {
+    screens.forEach(screen => {
+      document.getElementById(screen).classList.remove('active');
+    });
+    document.getElementById(id).classList.add('active');
+  }
+
+  function generateRoomId() {
+    return Math.random().toString(36).substring(2, 8);
+  }
+
+  function getRoomFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('room');
+  }
+
+  function updatePlayerList() {
+    const list = document.getElementById('playerNames');
+    list.innerHTML = '';
+    players.forEach(name => {
+      const li = document.createElement('li');
+      li.textContent = name;
+      list.appendChild(li);
+    });
+  }
+
+  function joinGame() {
+    playerName = document.getElementById('playerName').value;
+    if (!playerName) return;
+    if (!players.includes(playerName)) players.push(playerName);
+    updatePlayerList();
+    showScreen('problemSubmitScreen');
+  }
+
+  function submitProblem() {
+    const problem = document.getElementById('problemInput').value;
+    if (!problem) return;
+    currentProblem = problem;
+    document.getElementById('givenProblem').textContent = 'Problem: ' + problem;
+    showScreen('drawingScreen');
+  }
+
+  function finishDrawing() {
+    showScreen('judgingScreen');
+    const name = document.getElementById('inventionName').value;
+    const pitch = document.getElementById('pitchLine').value;
+    document.getElementById('finalPitch').innerHTML = `<h3>${name}</h3><p>${pitch}</p>`;
+    setTimeout(() => {
+      const money1 = Math.floor(Math.random() * 500 + 100);
+      const money2 = Math.floor(Math.random() * 300 + 200);
+      const money3 = Math.floor(Math.random() * 100 + 50);
+      document.getElementById('judge1').textContent = `🤖 Professor Realgood: Awarded $${money1} for innovation.`;
+      document.getElementById('judge2').textContent = `🤪 WackyBot 9000: Gave $${money2} for sheer chaos.`;
+      document.getElementById('judge3').textContent = `😒 Judge Meh: Ugh, fine... $${money3}.`;
+      const total = money1 + money2 + money3;
+      document.getElementById('totalEarnings').textContent = 'Total Earnings: $' + total;
+    }, 1500);
+  }
+
+  function startNextRound() {
+    document.getElementById('problemInput').value = '';
+    document.getElementById('inventionName').value = '';
+    document.getElementById('pitchLine').value = '';
+    document.getElementById('finalPitch').innerHTML = '';
+    const ctx = document.getElementById('canvas').getContext('2d');
+    ctx.clearRect(0, 0, 400, 400);
+    showScreen('problemSubmitScreen');
+  }
+
+  // Drawing logic
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+
+  canvas.addEventListener('mousedown', () => drawing = true);
+  canvas.addEventListener('mouseup', () => drawing = false);
+  canvas.addEventListener('mousemove', (e) => {
+    if (!drawing) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  function copyInviteLink() {
+    const text = window.location.href;
+    navigator.clipboard.writeText(text).then(() => {
+      document.getElementById('copyStatus').textContent = 'Copied!';
+      setTimeout(() => {
+        document.getElementById('copyStatus').textContent = '';
+      }, 2000);
+    });
+  }
+
+  // Room ID Handling
+  window.onload = () => {
+    roomId = getRoomFromURL();
+    if (!roomId) {
+      roomId = generateRoomId();
+      const newURL = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+      window.history.replaceState(null, '', newURL);
+    }
+    document.getElementById('inviteLink').innerHTML = `Invite friends with this link:<br><code>${window.location.href}</code>`;
+  }
+</script>
+
+</body>
+</html>
